@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>動態舒爾特專注力訓練 (倒數模式)</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            background-color: #121212;
+            color: #ffffff;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        /* 頂部資訊區 */
+        .header-panel {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .timer {
+            font-size: 3.5rem;
+            font-weight: bold;
+            color: #ff4d4d;
+            font-family: monospace;
+            margin-bottom: 5px;
+        }
+        .status {
+            font-size: 1.2rem;
+            color: #cccccc;
+        }
+        .target-num {
+            color: #ffeb3b;
+            font-weight: bold;
+            font-size: 1.5rem;
+        }
+
+        /* 旋轉圓盤容器 */
+        .wheel-container {
+            position: relative;
+            width: 380px;
+            height: 380px;
+            border-radius: 50%;
+            background-color: #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.1);
+            animation: spin 25s linear infinite;
+        }
+
+        .wheel-container.disabled {
+            pointer-events: none;
+            opacity: 0.5;
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        /* 按鈕基本樣式 */
+        .sector-btn {
+            position: absolute;
+            background-color: #f5eedc;
+            color: #111111;
+            border: 1px solid #333;
+            font-weight: bold;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            user-select: none;
+            transition: background-color 0.1s, transform 0.1s;
+        }
+
+        .sector-btn span {
+            animation: unspin 25s linear infinite;
+        }
+
+        @keyframes unspin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(-360deg); }
+        }
+
+        /* 控制按鈕 */
+        .controls {
+            margin-top: 30px;
+            display: flex;
+            gap: 15px;
+        }
+        .btn {
+            padding: 10px 24px;
+            font-size: 1rem;
+            font-weight: bold;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+            background-color: #ff4d4d;
+            color: #fff;
+            transition: opacity 0.2s;
+        }
+        .btn:hover {
+            opacity: 0.9;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header-panel">
+        <div class="timer" id="timer">01:30</div>
+        <div class="status">下一目標：<span class="target-num" id="targetNum">1</span> / 50</div>
+    </div>
+
+    <!-- 旋轉圓盤 -->
+    <div class="wheel-container" id="wheel"></div>
+
+    <div class="controls">
+        <button class="btn" onclick="startGame()">重新開始</button>
+    </div>
+
+    <script>
+        const TOTAL_NUMBERS = 50;
+        const TOTAL_SECONDS = 90; // 1 分 30 秒 = 90 秒
+        let currentTarget = 1;
+        let timerInterval = null;
+        let remainingTime = TOTAL_SECONDS;
+        let isGameOver = false;
+
+        function shuffle(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        function startGame() {
+            currentTarget = 1;
+            remainingTime = TOTAL_SECONDS;
+            isGameOver = false;
+
+            document.getElementById('targetNum').innerText = currentTarget;
+            document.getElementById('wheel').classList.remove('disabled');
+            
+            clearInterval(timerInterval);
+            renderTimer();
+            
+            timerInterval = setInterval(updateTimer, 1000);
+
+            generateWheel();
+        }
+
+        function renderTimer() {
+            const minutes = Math.floor(remainingTime / 60);
+            const seconds = remainingTime % 60;
+            const pad = (n) => n.toString().padStart(2, '0');
+            document.getElementById('timer').innerText = `${pad(minutes)}:${pad(seconds)}`;
+        }
+
+        function updateTimer() {
+            remainingTime--;
+            renderTimer();
+
+            if (remainingTime <= 0) {
+                clearInterval(timerInterval);
+                isGameOver = true;
+                document.getElementById('wheel').classList.add('disabled');
+                setTimeout(() => alert("時間到！挑戰失敗，再試一次吧！"), 100);
+            }
+        }
+
+        function generateWheel() {
+            const wheel = document.getElementById('wheel');
+            wheel.innerHTML = '';
+
+            const nums = shuffle(Array.from({ length: TOTAL_NUMBERS }, (_, i) => i + 1));
+            const ringCounts = [1, 7, 18, 24];
+            const ringRadii = [0, 55, 110, 165];
+
+            let numIdx = 0;
+
+            ringCounts.forEach((count, ringIdx) => {
+                const radius = ringRadii[ringIdx];
+                const angleStep = (360 / count);
+
+                for (let i = 0; i < count; i++) {
+                    if (numIdx >= TOTAL_NUMBERS) break;
+
+                    const val = nums[numIdx++];
+                    const angle = i * angleStep;
+
+                    const btn = document.createElement('div');
+                    btn.className = 'sector-btn';
+                    
+                    const rad = (angle - 90) * (Math.PI / 180);
+                    const x = Math.cos(rad) * radius;
+                    const y = Math.sin(rad) * radius;
+
+                    const size = ringIdx === 0 ? 50 : 42;
+                    btn.style.width = `${size}px`;
+                    btn.style.height = `${size}px`;
+                    btn.style.borderRadius = '50%';
+                    btn.style.transform = `translate(${x}px, ${y}px)`;
+
+                    const span = document.createElement('span');
+                    span.innerText = val;
+                    if (val === 1) {
+                        span.style.color = '#ff4d4d';
+                    }
+                    btn.appendChild(span);
+
+                    btn.addEventListener('click', () => handleTap(val, btn));
+
+                    wheel.appendChild(btn);
+                }
+            });
+        }
+
+        function handleTap(num, element) {
+            if (isGameOver) return;
+
+            if (num === currentTarget) {
+                element.style.backgroundColor = '#4caf50';
+                element.style.color = '#ffffff';
+
+                currentTarget++;
+
+                if (currentTarget > TOTAL_NUMBERS) {
+                    clearInterval(timerInterval);
+                    isGameOver = true;
+                    document.getElementById('targetNum').innerText = "通關！";
+                    const usedTime = TOTAL_SECONDS - remainingTime;
+                    const mins = Math.floor(usedTime / 60);
+                    const secs = usedTime % 60;
+                    setTimeout(() => alert(`恭喜通關！總共耗時：${mins}分${secs}秒`), 100);
+                } else {
+                    document.getElementById('targetNum').innerText = currentTarget;
+                }
+            } else {
+                const originalBg = element.style.backgroundColor;
+                element.style.backgroundColor = '#ff4d4d';
+                setTimeout(() => {
+                    element.style.backgroundColor = originalBg;
+                }, 200);
+            }
+        }
+
+        window.onload = startGame;
+    </script>
+</body>
+</html>
